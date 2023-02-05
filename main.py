@@ -1,15 +1,19 @@
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse, Response
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from routers import routers
 from fastapi.exceptions import RequestValidationError
-
 
 app = FastAPI()
 app.include_router(routers)
 
 
 @app.exception_handler(RequestValidationError)
-def validation_exception_handler(response, exc: RequestValidationError):
-    answer = f"field {exc.errors()[0]['loc'][1]}: {exc.errors()[0]['msg']}"
-    return JSONResponse(status_code=400,
-                        content={"error": answer})
+def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Функция обработки ошибок при валидации данных."""
+
+    if len(exc.errors()) > 1:
+        err_massage = 'All fields are required'
+    else:
+        err_massage = f"field {exc.errors()[0]['loc'][1]}: {exc.errors()[0]['msg']}"
+
+    return JSONResponse(status_code=400, content={"error": err_massage})

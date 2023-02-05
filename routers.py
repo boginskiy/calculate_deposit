@@ -3,4 +3,4 @@ from deposit import views
 
 
 routers = APIRouter()
-routers.include_router(views.router, prefix="/api/v1")
+routers.include_router(views.router, prefix="")
