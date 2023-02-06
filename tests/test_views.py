@@ -1,5 +1,4 @@
 from unittest import TestCase
-from deposit.views import *
 from fastapi.testclient import TestClient
 from http import HTTPStatus
 from main import app
@@ -15,8 +14,9 @@ class MainPageTest(TestCase):
         self.assertEqual(self.response.status_code,
                          HTTPStatus.OK, 'Ошибка статуса ответа для /')
 
-    # def test_data_main_page(self):
-    #     assert self.response.json() == {"aaaa": 1234}, "Ошибка контента главной страницы"
+    def test_html_main_page(self):
+        self.assertIn('text/html', self.response.headers.get('content-type'),
+                      'Ошибка типа контента, должен быть text/html')
 
 
 class CalculateDepositTest(TestCase):
@@ -73,59 +73,97 @@ class CalculateDepositTest(TestCase):
             cls.assertEqual(type(amount), float, f'Неверный тип данных вклада {amount}')
 
     def test_validation_fields_date(self):
-        response_date = client.post(
+        response = client.post(
             "/calculate", json={"date": "2021.12.31", "periods": 3,
                                 "amount": 10_000, "rate": 6})
 
-        self.assertEqual(response_date.status_code,
+        self.assertEqual(response.status_code,
                          HTTPStatus.BAD_REQUEST,
                          'При ошибке валидации поля date поднять ошибку 400')
         self.assertEqual(
-            response_date.json(),
+            response.json(),
             {"error": "field date: time data '2021.12.31' does not match format '%d.%m.%Y'"},
             'Неверный вывод предупреждения о нарушении валидации поля date')
 
     def test_validation_fields_periods(self):
-        response_date = client.post(
-            "/calculate", json={"date": "31.12.2021", "periods": 100,
-                                "amount": 10_000, "rate": 6})
+        error_validation_val = [0, 61]
 
-        self.assertEqual(response_date.status_code,
-                         HTTPStatus.BAD_REQUEST,
-                         'При ошибке валидации поля periods поднять ошибку 400')
+        for val in error_validation_val:
+            response = client.post(
+                "/calculate", json={"date": "31.12.2021", "periods": val,
+                                    "amount": 10_000, "rate": 6})
 
-        self.assertEqual(
-            response_date.json(),
-            {"error": "field periods: ensure this value is less than or equal to 60"},
-            'Неверный вывод предупреждения о нарушении валидации поля periods')
+            self.assertEqual(response.status_code,
+                             HTTPStatus.BAD_REQUEST,
+                             'При ошибке валидации поля periods поднять ошибку 400')
+
+            self.assertIn("field periods: ", response.json()['error'],
+                'Неверный вывод предупреждения о нарушении валидации поля periods')
 
     def test_validation_fields_amount(self):
-        response_date = client.post(
-            "/calculate", json={"date": "31.12.2021", "periods": 60,
-                                "amount": 10_000_000, "rate": 6})
+        error_validation_val = [9_999, 3_000_001]
 
-        self.assertEqual(response_date.status_code,
-                         HTTPStatus.BAD_REQUEST,
-                         'При ошибке валидации поля amount поднять ошибку 400')
-        self.assertEqual(
-            response_date.json(),
-            {'error': 'field amount: ensure this value is less than or equal to 3000000'},
-            'Неверный вывод предупреждения о нарушении валидации поля amount')
+        for val in error_validation_val:
+            response = client.post(
+                "/calculate", json={"date": "31.12.2021", "periods": 5,
+                                    "amount": val, "rate": 6})
+
+            self.assertEqual(response.status_code,
+                             HTTPStatus.BAD_REQUEST,
+                             'При ошибке валидации поля amount поднять ошибку 400')
+
+            self.assertIn('field amount: ', response.json()['error'],
+                'Неверный вывод предупреждения о нарушении валидации поля amount')
 
     def test_validation_fields_rate(self):
-        response_date = client.post(
-            "/calculate", json={"date": "31.12.2021", "periods": 60,
-                                "amount": 10_000, "rate": 15})
+        error_validation_val = [0.99, 8.01]
 
-        self.assertEqual(response_date.status_code,
-                         HTTPStatus.BAD_REQUEST,
-                         'При ошибке валидации поля rate поднять ошибку 400')
-        self.assertEqual(
-            response_date.json(),
-            {'error': 'field rate: ensure this value is less than or equal to 8'},
-            'Неверный вывод предупреждения о нарушении валидации поля amount')
+        for val in error_validation_val:
+            response = client.post(
+                "/calculate", json={"date": "31.12.2021", "periods": 5,
+                                    "amount": 10_000, "rate": val})
 
+            self.assertEqual(response.status_code,
+                             HTTPStatus.BAD_REQUEST,
+                             'При ошибке валидации поля rate поднять ошибку 400')
 
-# Проверить переходные даты годовые
-# Проверить максимальные и минимальные значения
-#
+            self.assertIn('field rate: ', response.json()['error'],
+                'Неверный вывод предупреждения о нарушении валидации поля rate')
+
+    def test_several_years_date(self):
+        test_several_years = ['05.11.2021', '05.12.2021', '05.01.2022', '05.02.2022']
+        response = client.post(
+            "/calculate", json={"date": "5.11.2021", "periods": 4,
+                                "amount": 10_000, "rate": 6})
+        for i in range(len(test_several_years)):
+            self.assertEqual(list(response.json().keys())[i], test_several_years[i],
+                             'Ошибка при переходе старого и нового года')
+
+    def test_fields_values_periods_num(self):
+        validation_val = (i for i in range(1, 61))
+
+        for val in validation_val:
+            response = client.post(
+                "/calculate", json={"date": "5.11.2021", "periods": val,
+                                    "amount": 10_000, "rate": 6})
+
+            self.assertEqual(response.status_code, HTTPStatus.OK,
+                             f'Ошибка при формировании данных на {val} периоде')
+
+            self.assertEqual(
+                len(response.json()), val,
+                f'Ошибка в расчетах при вводе значения {val} поля periods')
+
+    def test_fields_max_values_amount_num(self):
+        response = client.post(
+            "/calculate", json={"date": "5.11.2021", "periods": 1,
+                                "amount": 3_000_000, "rate": 6})
+        self.assertEqual(response.json()['05.11.2021'], 3015000,
+                         'Проверить вычисления для поля amount c max значением')
+
+    def test_fields_values_rate_float_num(self):
+        response = client.post(
+            "/calculate", json={"date": "31.12.2021", "periods": 1,
+                                "amount": 10_000, "rate": 5.59})
+        self.assertEqual(response.json()['31.12.2021'], 10046.58,
+                         'Проверить вычисления для поля rate на числах с плав. точкой')
