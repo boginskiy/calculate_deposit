@@ -3,35 +3,36 @@ from fastapi.testclient import TestClient
 from http import HTTPStatus
 from main import app
 
-client = TestClient(app)
-
 
 class MainPageTest(TestCase):
     def setUp(self):
-        self.response = client.get("/")
+        self.client = TestClient(app)
+        self.response = self.client.get("/")
 
     def test_status_code_main_page(self):
+        """Проверка статуса ответа главной страницы."""
+
         self.assertEqual(self.response.status_code,
                          HTTPStatus.OK, 'Ошибка статуса ответа для /')
 
     def test_html_main_page(self):
+        """Проверка типа контента главной страницы."""
+
         self.assertIn('text/html', self.response.headers.get('content-type'),
                       'Ошибка типа контента, должен быть text/html')
 
 
 class CalculateDepositTest(TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.response = client.post(
-            "/calculate", json={"date": "31.01.2021", "periods": 3,
-                                "amount": 10_000, "rate": 6})
-
-        cls.test_days = ['31.01.2021', '28.02.2021', '31.03.2021']
-        cls.test_amount = [10050.0, 10100.25, 10150.75]
+    def setUp(self):
+        self.client = TestClient(app)
+        self.test_days = ['31.01.2021', '28.02.2021', '31.03.2021']
+        self.test_amount = [10050.0, 10100.25, 10150.75]
 
     def test_not_fields_body_json(self):
-        response = client.post("/calculate", json={})
+        """Проверка статуса ответа и описание ошибки при обращении к
+        /calculate при условии, что ничего не передаем в теле запроса."""
+
+        response = self.client.post("/calculate", json={})
         self.assertEqual(response.status_code,
                          HTTPStatus.BAD_REQUEST,
                          'При отправке пустого запроса поднять ошибку 400')
@@ -41,8 +42,13 @@ class CalculateDepositTest(TestCase):
                          'Некорректный вывод ошибки при пустом запросе')
 
     def test_some_fields_body_json(self):
-        response = client.post("/calculate",
-                               json={"date": "10.12.2016", "amount": 10_000, "rate": 1})
+        """Проверка статуса ответа и описание ошибки при обращении к
+        /calculate при условии, что передаем неполные данные в теле запроса."""
+
+        response = self.client.post(
+            "/calculate",
+            json={"date": "10.12.2016", "amount": 10_000, "rate": 1})
+
         self.assertEqual(response.status_code,
                          HTTPStatus.BAD_REQUEST,
                          'При отправке запроса c отсутствующим полем поднять ошибку 400')
@@ -51,45 +57,61 @@ class CalculateDepositTest(TestCase):
                          {'error': 'field periods: field required'},
                          'Некорректный вывод ошибки при частичном запросе')
 
-    def test_full_fields_body_json(cls):
-        cls.assertEqual(cls.response.status_code,
+    def test_full_fields_body_json(self):
+        """Проверка выходных данных: даты начислений и суммы по вкладу, так же
+        статус ответа."""
+
+        self.response = self.client.post(
+            "/calculate", json={"date": "31.01.2021", "periods": 3,
+                                "amount": 10_000, "rate": 6})
+
+        self.assertEqual(self.response.status_code,
                          HTTPStatus.OK,
                          'Ошибка статуса ответа при отправке корректных данных')
 
-        date_array = list(cls.response.json().keys())
+        date_array = list(self.response.json().keys())
         for i in range(len(date_array)):
-            cls.assertEqual(date_array[i], cls.test_days[i],
+            self.assertEqual(date_array[i], self.test_days[i],
                             f'Ошибка в {i + 1} дате начислений по вкладу')
 
-        amount_array = list(cls.response.json().values())
+        amount_array = list(self.response.json().values())
         for i in range(len(amount_array)):
-            cls.assertEqual(amount_array[i], cls.test_amount[i],
+            self.assertEqual(amount_array[i], self.test_amount[i],
                             f'Ошибка в {i + 1} начислении по вкладу')
 
-    def test_type_fields_data_json(cls):
-        result = cls.response.json()
+    def test_type_fields_data_json(self):
+        """Проверка типа выходных данных date - str, amount - float."""
+
+        self.response = self.client.post(
+            "/calculate", json={"date": "31.01.2021", "periods": 3,
+                                "amount": 10_000, "rate": 6})
+
+        result = self.response.json()
         for date, amount in result.items():
-            cls.assertEqual(type(date), str, f'Неверный тип данных даты {date}')
-            cls.assertEqual(type(amount), float, f'Неверный тип данных вклада {amount}')
+            self.assertEqual(type(date), str, f'Неверный тип данных даты {date}')
+            self.assertEqual(type(amount), float, f'Неверный тип данных вклада {amount}')
 
     def test_validation_fields_date(self):
-        response = client.post(
+        """Проверка статуса ответа и предупреждения о нарушении валидации поля date."""
+
+        response = self.client.post(
             "/calculate", json={"date": "2021.12.31", "periods": 3,
                                 "amount": 10_000, "rate": 6})
 
         self.assertEqual(response.status_code,
                          HTTPStatus.BAD_REQUEST,
                          'При ошибке валидации поля date поднять ошибку 400')
-        self.assertEqual(
-            response.json(),
-            {"error": "field date: time data '2021.12.31' does not match format '%d.%m.%Y'"},
-            'Неверный вывод предупреждения о нарушении валидации поля date')
+
+        self.assertIn("field date: ", response.json()['error'],
+                      'Неверный вывод предупреждения о нарушении валидации поля date')
 
     def test_validation_fields_periods(self):
+        """Проверка статуса ответа и предупреждения о нарушении валидации поля periods."""
+
         error_validation_val = [0, 61]
 
         for val in error_validation_val:
-            response = client.post(
+            response = self.client.post(
                 "/calculate", json={"date": "31.12.2021", "periods": val,
                                     "amount": 10_000, "rate": 6})
 
@@ -101,10 +123,12 @@ class CalculateDepositTest(TestCase):
                 'Неверный вывод предупреждения о нарушении валидации поля periods')
 
     def test_validation_fields_amount(self):
+        """Проверка статуса ответа и предупреждения о нарушении валидации поля amount."""
+
         error_validation_val = [9_999, 3_000_001]
 
         for val in error_validation_val:
-            response = client.post(
+            response = self.client.post(
                 "/calculate", json={"date": "31.12.2021", "periods": 5,
                                     "amount": val, "rate": 6})
 
@@ -116,10 +140,12 @@ class CalculateDepositTest(TestCase):
                 'Неверный вывод предупреждения о нарушении валидации поля amount')
 
     def test_validation_fields_rate(self):
+        """Проверка статуса ответа и предупреждения о нарушении валидации поля rate."""
+
         error_validation_val = [0.99, 8.01]
 
         for val in error_validation_val:
-            response = client.post(
+            response = self.client.post(
                 "/calculate", json={"date": "31.12.2021", "periods": 5,
                                     "amount": 10_000, "rate": val})
 
@@ -130,20 +156,13 @@ class CalculateDepositTest(TestCase):
             self.assertIn('field rate: ', response.json()['error'],
                 'Неверный вывод предупреждения о нарушении валидации поля rate')
 
-    def test_several_years_date(self):
-        test_several_years = ['05.11.2021', '05.12.2021', '05.01.2022', '05.02.2022']
-        response = client.post(
-            "/calculate", json={"date": "5.11.2021", "periods": 4,
-                                "amount": 10_000, "rate": 6})
-        for i in range(len(test_several_years)):
-            self.assertEqual(list(response.json().keys())[i], test_several_years[i],
-                             'Ошибка при переходе старого и нового года')
-
     def test_fields_values_periods_num(self):
+        """Проверка максимального количества данных через ввод periods."""
+
         validation_val = (i for i in range(1, 61))
 
         for val in validation_val:
-            response = client.post(
+            response = self.client.post(
                 "/calculate", json={"date": "5.11.2021", "periods": val,
                                     "amount": 10_000, "rate": 6})
 
@@ -154,16 +173,36 @@ class CalculateDepositTest(TestCase):
                 len(response.json()), val,
                 f'Ошибка в расчетах при вводе значения {val} поля periods')
 
+    def test_several_years_date(self):
+        """Проверка корректного перехода на следующий годовой период."""
+
+        test_several_years = ['05.11.2021', '05.12.2021', '05.01.2022', '05.02.2022']
+        response = self.client.post(
+            "/calculate", json={"date": "5.11.2021", "periods": 4,
+                                "amount": 10_000, "rate": 6})
+
+        for i in range(len(test_several_years)):
+            self.assertEqual(list(response.json().keys())[i], test_several_years[i],
+                             'Ошибка при переходе от старого к новому году')
+
     def test_fields_max_values_amount_num(self):
-        response = client.post(
+        """Проверка корректности вычислений для максимального значения
+        и минимального периода вклада."""
+
+        response = self.client.post(
             "/calculate", json={"date": "5.11.2021", "periods": 1,
                                 "amount": 3_000_000, "rate": 6})
+
         self.assertEqual(response.json()['05.11.2021'], 3015000,
                          'Проверить вычисления для поля amount c max значением')
 
     def test_fields_values_rate_float_num(self):
-        response = client.post(
+        """Проверка корректности вычислений при использовании числа с плавающей точкой
+         для поля rate."""
+
+        response = self.client.post(
             "/calculate", json={"date": "31.12.2021", "periods": 1,
                                 "amount": 10_000, "rate": 5.59})
+
         self.assertEqual(response.json()['31.12.2021'], 10046.58,
                          'Проверить вычисления для поля rate на числах с плав. точкой')

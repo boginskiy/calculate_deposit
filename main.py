@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from routers import routers
 from fastapi.exceptions import RequestValidationError
+from calculate_deposit.routers import routers
 
 app = FastAPI()
 app.include_router(routers)

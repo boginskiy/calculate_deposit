@@ -33,7 +33,7 @@ sudo docker run boginskiy/lighthousebot:v1.1
 ### **Запуск проекта через Dockerfile**
 Клонировать проект c GitHub
 ```
-git clone git@github.com:boginskiy/LightHouseBot.git
+git clone git@github.com:boginskiy/calculate_deposit.git
 ```
 
 Задать свои переменные окружения. Подробности в _"Шаблон наполнения env-файла"_
@@ -49,7 +49,7 @@ sudo docker build -t <имя_проекта> .
 
 Запустить контейнер с образом
 ```
-sudo docker run <имя_проекта>
+sudo docker run -d --name <имя_контейнера> -p 8000:8000 <имя_проекта>
 ```
 
 ### **Шаблон наполнения env-файла**
