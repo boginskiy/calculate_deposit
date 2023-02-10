@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator, Field
-import datetime
+from datetime import datetime
 
 
 class DataCalculate_IN(BaseModel):
@@ -16,7 +16,7 @@ class DataCalculate_IN(BaseModel):
 
     @validator("date")
     def check_date(cls, values):
-        return datetime.datetime.strptime(values, "%d.%m.%Y").date()
+        return datetime.strptime(values, "%d.%m.%Y").date()
 
     @validator("rate")
     def check_rate(cls, values):

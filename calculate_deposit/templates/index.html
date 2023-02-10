@@ -11,119 +11,76 @@ button{margin: 5px;}
 <body>
     <h2>Введите данные для расчета % по вкладу</h2>
     <div>
-        <input type="hidden" id="userId" />
+        <input type="hidden" id="depositId" />
         <p>
             Дата:<br/>
-            <input id="userName" />
+            <input id="depositDate" />
         </p>
         <p>
             Период:<br />
-            <input id="userAge" type="number" />
+            <input id="depositPeriods" type="number" />
         </p>
          <p>
             Сумма вклада:<br />
-            <input id="userAge" type="number" />
+            <input id="depositAmount" type="number" />
         </p>
          <p>
             Процент по вкладу:<br />
-            <input id="userAge" type="number" />
+            <input id="depositRate" type="number" />
          </p>
 
          <p>
-            <button id="saveBtn">Сохранить</button>
+            <button id="saveBtn">Рассчитать</button>
             <button id="resetBtn">Сбросить</button>
         </p>
     </div>
     <table>
-        <thead><tr><th>Имя</th><th>Возраст</th><th></th></tr></thead>
+        <thead><tr>
+            <th>Дата заявки |</th>
+            <th>Период |</th>
+            <th>Сумма вклада |</th>
+            <th>Процент по вкладу |</th>
+            <th>Ежемесячная прибыль |</th>
+            <th>Итоговая прибыль</th>
+        </tr></thead>
         <tbody>
         </tbody>
     </table>
 
     <script>
-    // Получение всех пользователей
-        async function getUsers() {
+    // Получение имеющихся данных
+        async function getDeposit() {
             // отправляет запрос и получаем ответ
-            const response = await fetch("/api/users", {
+            const response = await fetch("/deposit", {
                 method: "GET",
                 headers: { "Accept": "application/json" }
             });
             // если запрос прошел нормально
             if (response.ok === true) {
                 // получаем данные
-                const users = await response.json();
+                const deposits = await response.json();
                 const rows = document.querySelector("tbody");
                 // добавляем полученные элементы в таблицу
-                users.forEach(user => rows.append(row(user)));
+                deposits.forEach(deposit => rows.append(row(deposit)));
             }
         }
-        // Получение одного пользователя
-        async function getUser(id) {
-            const response = await fetch(`/api/users/${id}`, {
-                method: "GET",
-                headers: { "Accept": "application/json" }
-            });
-            if (response.ok === true) {
-                const user = await response.json();
-                document.getElementById("userId").value = user.id;
-                document.getElementById("userName").value = user.name;
-                document.getElementById("userAge").value = user.age;
-            }
-            else {
-                // если произошла ошибка, получаем сообщение об ошибке
-                const error = await response.json();
-                console.log(error.message); // и выводим его на консоль
-            }
-        }
-        // Добавление пользователя
-        async function createUser(userName, userAge) {
 
-            const response = await fetch("api/users", {
+        // Добавление калькуляции
+        async function createCalculate(depositDate, depositPeriods,
+                                       depositAmount, depositRate) {
+
+            const response = await fetch("/calculate", {
                 method: "POST",
                 headers: { "Accept": "application/json", "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: userName,
-                    age: parseInt(userAge, 10)
+                    date: depositDate,
+                    periods: parseInt(depositPeriods, 10),
+                    amount: parseInt(depositAmount, 10),
+                    rate: parseFloat(depositRate, 10)
                 })
             });
             if (response.ok === true) {
-                const user = await response.json();
-                document.querySelector("tbody").append(row(user));
-            }
-            else {
-                const error = await response.json();
-                console.log(error.message);
-            }
-        }
-        // Изменение пользователя
-        async function editUser(userId, userName, userAge) {
-            const response = await fetch("api/users", {
-                method: "PUT",
-                headers: { "Accept": "application/json", "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    id: userId,
-                    name: userName,
-                    age: parseInt(userAge, 10)
-                })
-            });
-            if (response.ok === true) {
-                const user = await response.json();
-                document.querySelector(`tr[data-rowid='${user.id}']`).replaceWith(row(user));
-            }
-            else {
-                const error = await response.json();
-                console.log(error.message);
-            }
-        }
-        // Удаление пользователя
-        async function deleteUser(id) {
-            const response = await fetch(`/api/users/${id}`, {
-                method: "DELETE",
-                headers: { "Accept": "application/json" }
-            });
-            if (response.ok === true) {
-                const user = await response.json();
-                document.querySelector(`tr[data-rowid='${user.id}']`).remove();
+                getDeposit()
             }
             else {
                 const error = await response.json();
@@ -131,60 +88,63 @@ button{margin: 5px;}
             }
         }
 
-        // сброс данных формы после отправки
+        // Сброс данных формы после отправки
         function reset() {
-            document.getElementById("userId").value =
-            document.getElementById("userName").value =
-            document.getElementById("userAge").value = "";
+            document.getElementById("depositId").value =
+            document.getElementById("depositDate").value =
+            document.getElementById("depositPeriods").value =
+            document.getElementById("depositAmount").value =
+            document.getElementById("depositRate").value = "";
         }
-        // создание строки для таблицы
-        function row(user) {
+        // Cоздание строки для таблицы
+        function row(deposit) {
 
             const tr = document.createElement("tr");
-            tr.setAttribute("data-rowid", user.id);
+            tr.setAttribute("data-rowid", deposit.id);
 
-            const nameTd = document.createElement("td");
-            nameTd.append(user.name);
-            tr.append(nameTd);
+            const dateTd = document.createElement("td");
+            dateTd.append(deposit.date);
+            tr.append(dateTd);
 
-            const ageTd = document.createElement("td");
-            ageTd.append(user.age);
-            tr.append(ageTd);
+            const periodsTd = document.createElement("td");
+            periodsTd.append(deposit.periods);
+            tr.append(periodsTd);
+
+            const amountTd = document.createElement("td");
+            amountTd.append(deposit.amount);
+            tr.append(amountTd);
+
+            const rateTd = document.createElement("td");
+            rateTd.append(deposit.rate);
+            tr.append(rateTd);
+
+            const month_profitTd = document.createElement("td");
+            month_profitTd.append(deposit.month_profit);
+            tr.append(month_profitTd);
+
+            const final_profitTd = document.createElement("td");
+            final_profitTd.append(deposit.final_profit);
+            tr.append(final_profitTd);
 
             const linksTd = document.createElement("td");
-
-            const editLink = document.createElement("button");
-            editLink.append("Изменить");
-            editLink.addEventListener("click", async() => await getUser(user.id));
-            linksTd.append(editLink);
-
-            const removeLink = document.createElement("button");
-            removeLink.append("Удалить");
-            removeLink.addEventListener("click", async () => await deleteUser(user.id));
-
-            linksTd.append(removeLink);
             tr.appendChild(linksTd);
 
             return tr;
         }
-        // сброс значений формы
+        // Cброс значений формы
         document.getElementById("resetBtn").addEventListener("click", () =>  reset());
 
-        // отправка формы
+        // Отправка формы
         document.getElementById("saveBtn").addEventListener("click", async () => {
 
-            const id = document.getElementById("userId").value;
-            const name = document.getElementById("userName").value;
-            const age = document.getElementById("userAge").value;
-            if (id === "")
-                await createUser(name, age);
-            else
-                await editUser(id, name, age);
-            reset();
-        });
+            const id = document.getElementById("depositId").value;
+            const date = document.getElementById("depositDate").value;
+            const periods = document.getElementById("depositPeriods").value;
+            const amount = document.getElementById("depositAmount").value;
+            const rate = document.getElementById("depositRate").value;
 
-        // загрузка пользователей
-        getUsers();
+            await createCalculate(date, periods, amount, rate);
+        });
     </script>
 </body>
 </html>

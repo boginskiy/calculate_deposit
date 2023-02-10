@@ -1,7 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse, FileResponse
 from .schemas import DataCalculate_IN
-from .service import main_calculate_deposit
+from ..core.utils import get_db
+from .service import main_calculate_deposit, get_data_deposit
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
@@ -14,9 +16,18 @@ def main_page():
     return FileResponse("calculate_deposit/templates/index.html")
 
 
-@router.post("/calculate")
-def calculate_deposit(item: DataCalculate_IN):
-    """Функция выводит полученные значения калькулятора."""
+@router.get("/deposit")
+def get_data_bd(db: Session = Depends(get_db)):
+    """Функция выводит последние добавленные данные в БД."""
 
-    new_calculate = main_calculate_deposit(item)
+    data_deposit = get_data_deposit(db)
+    return data_deposit[::-1]
+
+
+@router.post("/calculate")
+def calculate_deposit(item: DataCalculate_IN, db: Session = Depends(get_db)):
+    """Функция выводит полученные значения калькулятора
+    и собирает данные в базу данных."""
+
+    new_calculate = main_calculate_deposit(db, item)
     return JSONResponse(content=new_calculate)
