@@ -75,4 +75,4 @@ def main_calculate_deposit(db: Session, item: DataCalculate_IN):
 def get_data_deposit(db: Session):
     """Функция возвращает последние данные в БД."""
 
-    return db.query(Calculator).order_by(Calculator.id.desc()).limit(1)
+    return db.query(Calculator).order_by(Calculator.id.desc()).limit(1)[::-1]

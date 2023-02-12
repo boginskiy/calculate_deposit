@@ -1,6 +1,7 @@
+from typing import List
 from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse, FileResponse
-from .schemas import DataCalculate_IN
+from .schemas import DataCalculate_IN, DataCalculate_OUT
 from ..core.utils import get_db
 from .service import main_calculate_deposit, get_data_deposit
 from sqlalchemy.orm import Session
@@ -16,12 +17,12 @@ def main_page():
     return FileResponse("calculate_deposit/templates/index.html")
 
 
-@router.get("/deposit")
+@router.get("/deposit", response_model=List[DataCalculate_OUT])
 def get_data_bd(db: Session = Depends(get_db)):
     """Функция выводит последние добавленные данные в БД."""
 
     data_deposit = get_data_deposit(db)
-    return data_deposit[::-1]
+    return data_deposit
 
 
 @router.post("/calculate")

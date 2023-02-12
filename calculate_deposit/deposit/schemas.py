@@ -21,3 +21,16 @@ class DataCalculate_IN(BaseModel):
     @validator("rate")
     def check_rate(cls, values):
         return values / 100
+
+
+class DataCalculate_OUT(BaseModel):
+    id: int
+    date: str
+    periods: int
+    amount: int
+    rate: float
+    month_profit: float
+    final_profit: float
+
+    class Config:
+        orm_mode = True
